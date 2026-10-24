@@ -1,0 +1,123 @@
+<section class="card">
+  <div class="page-title">
+    <app-icon name="list" />
+    <h1>Approvals</h1>
+  </div>
+  @if (message()) {
+    <p class="note error">
+      <app-icon name="x" />
+      <span>{{ message() }}</span>
+    </p>
+  }
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Fee</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (user of users(); track user.id) {
+          <tr class="clickable" (click)="open(user)">
+            <td>
+              <span class="person">
+                <span class="avatar">
+                  <app-icon [name]="user.role === 'Doctor' ? 'doctor' : 'user'" />
+                </span>
+                {{ user.fullName }}
+              </span>
+            </td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.role }}</td>
+            <td>
+              @if (user.secondOpinionFee != null) {
+                <span class="euros"><app-icon class="show" name="euro" />{{ user.secondOpinionFee | number: '1.2-2' }}</span>
+              } @else {
+                —
+              }
+            </td>
+            <td>
+              <span [class]="'pill ' + (user.status === 'Approved' ? 'good' : user.status === 'Rejected' ? 'bad' : 'pending')">{{ user.status }}</span>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>
+
+@if (selected(); as person) {
+  <div class="backdrop" (click)="close()">
+    <section class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header>
+        <h2>{{ person.fullName }}</h2>
+        <button type="button" class="ghost" (click)="close()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </header>
+      <dl class="facts">
+        <div><dt>Email</dt><dd>{{ person.email }}</dd></div>
+        <div><dt>Phone</dt><dd>{{ person.phone || '—' }}</dd></div>
+        <div><dt>Address</dt><dd>{{ person.address || '—' }}</dd></div>
+        @if (person.hospital) {
+          <div><dt>Hospital</dt><dd>{{ person.hospital }}</dd></div>
+        }
+        @if (person.payPalEmail) {
+          <div><dt>PayPal</dt><dd>{{ person.payPalEmail }}</dd></div>
+        }
+        <div><dt>Role</dt><dd>{{ person.role }}</dd></div>
+        @if (person.secondOpinionFee != null) {
+          <div><dt>Second-opinion fee</dt><dd class="euros"><app-icon class="show" name="euro" />{{ person.secondOpinionFee | number: '1.2-2' }}</dd></div>
+        }
+        @if (person.role === 'Patient') {
+          <div><dt>Spent</dt><dd class="euros"><app-icon class="show" name="euro" />{{ person.spent | number: '1.2-2' }}</dd></div>
+          <div><dt>Refunded</dt><dd class="euros"><app-icon class="show" name="euro" />{{ person.refunded | number: '1.2-2' }}</dd></div>
+        }
+        @if (person.role === 'Doctor') {
+          <div><dt>Received</dt><dd class="euros"><app-icon class="show" name="euro" />{{ person.received | number: '1.2-2' }}</dd></div>
+        }
+        <div>
+          <dt>Status</dt>
+          <dd>
+            <span [class]="'pill ' + (person.status === 'Approved' ? 'good' : person.status === 'Rejected' ? 'bad' : 'pending')">{{ person.status }}</span>
+          </dd>
+        </div>
+        @if (photos().length) {
+          <div class="id-row">
+            <dt>Identification</dt>
+            <dd>
+              <div class="photos">
+                @for (photo of photos(); track photo.id) {
+                  <figure>
+                    <img [src]="photo.url" [alt]="photo.name" />
+                    <figcaption>{{ photo.name }}</figcaption>
+                  </figure>
+                }
+              </div>
+            </dd>
+          </div>
+        }
+      </dl>
+      @if (person.role !== 'Admin') {
+        <div class="actions">
+          @if (person.status !== 'Approved') {
+            <button type="button" [disabled]="busyId() === person.id" (click)="decide('approve')">
+              <app-icon name="check" />
+              Approve
+            </button>
+          }
+          @if (person.status !== 'Rejected') {
+            <button type="button" class="warn" [disabled]="busyId() === person.id" (click)="decide('reject')">
+              <app-icon name="x" />
+              Reject
+            </button>
+          }
+        </div>
+      }
+    </section>
+  </div>
+}

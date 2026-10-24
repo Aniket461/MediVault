@@ -1,0 +1,186 @@
+<section class="card">
+  <div class="page-title">
+    <app-icon name="list" />
+    <h1>Requests</h1>
+  </div>
+  @if (message() && !selected()) {
+    <p class="note error">
+      <app-icon name="x" />
+      <span>{{ message() }}</span>
+    </p>
+  }
+  @if (requests().length === 0) {
+    <p class="sub">No requests yet.</p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Fee</th>
+            <th>Status</th>
+            <th>Reply by</th>
+            <th>Received</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (request of requests(); track request.id) {
+            <tr class="clickable" (click)="open(request)">
+              <td><button type="button" class="link" (click)="accounts.open(request.patientId); $event.stopPropagation()">{{ request.patientName }}</button></td>
+              <td><span class="euros"><app-icon class="show" name="euro" />{{ request.fee | number: '1.2-2' }}</span></td>
+              <td><span [class]="tone(request.status)">{{ statusLabel(request) }}</span></td>
+              <td>{{ request.status === 'Open' && request.replyBy ? (request.replyBy | date: 'mediumDate') : '—' }}</td>
+              <td>{{ request.createdAt | date: 'mediumDate' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+@if (selected(); as request) {
+  <div class="backdrop" (click)="close()">
+    <section class="dialog wide" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header>
+        <div class="dialog-title">
+          <h2><button type="button" class="link" (click)="accounts.open(request.patientId)">{{ request.patientName }}</button></h2>
+          <span [class]="tone(request.status)">{{ statusLabel(request) }}</span>
+        </div>
+        <button type="button" class="ghost" (click)="close()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </header>
+      <div class="money">
+        <div><span>Patient paid</span><strong class="euros"><app-icon class="show" name="euro" />{{ request.fee | number: '1.2-2' }}</strong></div>
+        @if (request.doctorAmount != null) {
+          <div><span>You received</span><strong class="euros"><app-icon class="show" name="euro" />{{ request.doctorAmount | number: '1.2-2' }}</strong></div>
+        } @else if (request.status === 'Answered') {
+          <div><span>Your payout</span><strong>Not sent</strong></div>
+        }
+      </div>
+      @if (request.status === 'Open' || request.status === 'Answered' || request.clinicalAid) {
+      <section class="aid">
+        <h3>Aid for your review</h3>
+        <p class="hint">This organizes what the patient reported, then adds a possible reading. That reading is not a diagnosis, and your fee stays the number you set.</p>
+        @if (aidLoading() && !request.clinicalAid) {
+          <p>Preparing a reading…</p>
+        } @else if (request.clinicalAid; as aid) {
+          <h4>Overview</h4>
+          <p>{{ aid.overview }}</p>
+          <h4>What they report</h4>
+          <p>{{ aid.reported }}</p>
+          <h4>Earlier care</h4>
+          <p>{{ aid.earlierCare }}</p>
+          @if (aid.impression) {
+            <h4>What AI feels</h4>
+            <p>{{ aid.impression }}</p>
+          }
+          @if (aid.reviewPoints.length) {
+            <h4>Worth a look</h4>
+            <ul>
+              @for (point of aid.reviewPoints; track point) {
+                <li>{{ point }}</li>
+              }
+            </ul>
+          }
+        } @else if (aidUnavailable()) {
+          <p>A reading could not be prepared. The patient's answers are below.</p>
+        }
+        @if (aidError()) {
+          <p>{{ aidError() }}</p>
+        }
+        @if (request.status === 'Open' || request.status === 'Answered') {
+          <button type="button" class="ghost" [disabled]="aidLoading()" (click)="refreshAid()">
+            {{ aidLoading() ? 'Preparing…' : 'Ask again' }}
+          </button>
+        }
+      </section>
+      }
+      <dl class="facts">
+        @if (request.intake; as intake) {
+          <div class="block"><dt>Symptoms</dt><dd>{{ intake.symptoms.join(', ') }}</dd></div>
+          <div class="block"><dt>In their words</dt><dd>{{ intake.feeling }}</dd></div>
+          <div class="block"><dt>How long</dt><dd>{{ intake.duration }}</dd></div>
+          <div class="block"><dt>How strong it feels</dt><dd>{{ intake.intensity }}</dd></div>
+          <div class="block"><dt>Asked someone before</dt><dd>{{ intake.consulted }}</dd></div>
+          @if (intake.consultedNote) {
+            <div class="block"><dt>What they were told</dt><dd>{{ intake.consultedNote }}</dd></div>
+          }
+        }
+        <div class="block"><dt>What the patient wants you to know</dt><dd>{{ request.message }}</dd></div>
+        @if (request.status === 'Open' && request.replyBy) {
+          <div class="block"><dt>Reply by</dt><dd>{{ request.replyBy | date: 'mediumDate' }}</dd></div>
+        }
+        <div class="block">
+          <dt>Patient's files</dt>
+          <dd>
+            <div class="table-wrap files">
+              <table>
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (file of request.files; track file.id) {
+                    <tr>
+                      <td>
+                        <button type="button" class="link" (click)="openFile(request, file.id)">
+                          <app-preview [fileName]="file.fileName" [recordId]="file.id" [requestId]="request.id" />
+                          {{ file.fileName }}
+                        </button>
+                      </td>
+                      <td>{{ file.description }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </dd>
+        </div>
+      </dl>
+      @if (request.status === 'Refunded' && request.refundCause === 'Declined') {
+        <p class="note">You declined this request. The patient was refunded.</p>
+      } @else if (request.status === 'Refunded') {
+        <p class="note">The 7 days to reply have passed. This request was cancelled.</p>
+      }
+      @if (request.status === 'Open') {
+        <form class="dialog-form" [formGroup]="form" (ngSubmit)="send()">
+          <label>
+            Opinion for the patient
+            <span class="field tall">
+              <textarea formControlName="opinion" rows="5"></textarea>
+            </span>
+          </label>
+          @if (confirmingDecline()) {
+            <p class="note">The patient is refunded in full.</p>
+          }
+          @if (message()) {
+            <p class="note error">
+              <app-icon name="x" />
+              <span>{{ message() }}</span>
+            </p>
+          }
+          <div class="actions">
+            @if (confirmingDecline()) {
+              <button type="button" class="ghost" [disabled]="saving()" (click)="confirmingDecline.set(false)">Keep request</button>
+              <button type="button" class="warn" [disabled]="saving()" (click)="decline()">Decline and refund</button>
+            } @else {
+              <button type="button" class="warn" [disabled]="saving()" (click)="decline()">Decline</button>
+              <button type="submit" [disabled]="saving()">
+                <app-icon name="check" />
+                Send opinion
+              </button>
+            }
+          </div>
+        </form>
+      } @else if (request.opinion) {
+        <dl class="facts">
+          <div class="block"><dt>Opinion for the patient</dt><dd>{{ request.opinion }}</dd></div>
+        </dl>
+      }
+    </section>
+  </div>
+}

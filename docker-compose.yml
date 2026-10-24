@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: medivault
+      POSTGRES_PASSWORD: medivault
+      POSTGRES_DB: medivault
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medivault -d medivault"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: medivault
+      MINIO_ROOT_PASSWORD: medivault-secret-key
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
+  api:
+    build: ./backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: Host=db;Port=5432;Database=medivault;Username=medivault;Password=medivault
+      Jwt__Issuer: medivault
+      Jwt__Audience: medivault
+      Jwt__Key: medivault-dev-signing-key-change-me
+      Admin__Email: admin@medivault.com
+      Admin__Password: admin
+      Admin__FullName: MediVault Admin
+      PayPal__ClientId: ${PAYPAL_CLIENT_ID:-}
+      PayPal__ClientSecret: ${PAYPAL_CLIENT_SECRET:-}
+      PayPal__Mode: sandbox
+      PayPal__Currency: EUR
+      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      OpenAI__Model: ${OPENAI_MODEL:-gpt-4o-mini}
+      Storage__ServiceUrl: http://minio:9000
+      Storage__Bucket: medivault-identity
+      Storage__AccessKey: medivault
+      Storage__SecretKey: medivault-secret-key
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+  web:
+    build: ./frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  miniodata:

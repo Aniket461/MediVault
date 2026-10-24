@@ -1,0 +1,91 @@
+<header class="top">
+  <a class="brand" routerLink="/" aria-label="MediVault">
+    <img src="logo.jpg" alt="MediVault" />
+  </a>
+  <nav #menuRoot>
+    @if (auth.user(); as user) {
+      <button type="button" class="menu-button" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen()" [attr.aria-label]="inbox.count() ? 'Menu, ' + inbox.count() + ' notifications' : 'Menu'">
+        <app-icon name="menu" />
+        @if (inbox.count()) {
+          <span class="count">{{ inbox.count() }}</span>
+        }
+      </button>
+      @if (menuOpen()) {
+        <div class="menu">
+          <button type="button" class="menu-name" (click)="openAccount()">
+            <app-icon name="user" />
+            {{ user.fullName }}
+          </button>
+          @if (user.role !== 'Admin') {
+            <button type="button" (click)="openNotices()">
+              <app-icon name="bell" />
+              Notifications
+              @if (inbox.count()) {
+                <span class="count">{{ inbox.count() }}</span>
+              }
+            </button>
+          }
+          @if (user.role === 'Patient') {
+            <a routerLink="/" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMenu()">
+              <app-icon name="file" />
+              Records
+            </a>
+            <a routerLink="/requests" routerLinkActive="on" (click)="closeMenu()">
+              <app-icon name="list" />
+              Requests
+            </a>
+            <button type="button" (click)="askDoctor()">
+              <app-icon name="doctor" />
+              Ask a doctor
+            </button>
+          }
+          @if (user.role === 'Admin') {
+            <a routerLink="/admin" routerLinkActive="on" (click)="closeMenu()">
+              <app-icon name="check" />
+              Approvals
+            </a>
+          }
+          <span class="menu-rule"></span>
+          <button type="button" class="menu-signout" (click)="signOut()">
+            <app-icon name="logout" />
+            Sign out
+          </button>
+        </div>
+      }
+    } @else {
+      <a class="button ghost" routerLink="/login">Sign in</a>
+      <a class="button" routerLink="/register">Create account</a>
+    }
+  </nav>
+</header>
+<main>
+  <router-outlet />
+</main>
+<footer class="site-footer">© MediVault 2026</footer>
+<app-profile />
+@if (noticesOpen()) {
+  <div class="backdrop front" (click)="closeNotices()">
+    <section class="dialog notices" role="dialog" aria-modal="true" aria-labelledby="notices-title" (click)="$event.stopPropagation()">
+      <header>
+        <h2 id="notices-title">Notifications</h2>
+        <button type="button" class="icon-hit close-mark" (click)="closeNotices()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </header>
+      @if (inbox.pending().length === 0) {
+        <p class="empty">No notifications.</p>
+      } @else {
+        <div class="notice-list">
+          @for (request of inbox.pending(); track request.id) {
+            <p class="note notice">
+              <span>{{ request.notice }}</span>
+              <button type="button" class="icon-hit" (click)="inbox.dismiss(request.id)" aria-label="Dismiss">
+                <app-icon name="x" />
+              </button>
+            </p>
+          }
+        </div>
+      }
+    </section>
+  </div>
+}

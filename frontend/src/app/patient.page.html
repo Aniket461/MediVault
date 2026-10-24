@@ -1,0 +1,331 @@
+<div class="stack">
+  <section class="card">
+    <div class="page-title">
+      <app-icon name="list" />
+      <h1>Requests</h1>
+    </div>
+    @if (message()) {
+      <p class="note error">
+        <app-icon name="x" />
+        <span>{{ message() }}</span>
+      </p>
+    }
+    @if (requests().length === 0) {
+      <p class="sub">No requests yet.</p>
+    } @else {
+      <div class="request-list">
+        @for (request of requests(); track request.id) {
+          <article class="request" tabindex="0" (click)="openRequest(request)" (keydown.enter)="openRequest(request)">
+            <div class="request-main">
+              <button type="button" class="link" (click)="accounts.open(request.doctorId); $event.stopPropagation()">{{ request.doctorName }}</button>
+              <span>{{ request.createdAt | date: 'mediumDate' }}</span>
+              @if (request.status === 'Open' && request.replyBy) {
+                <span>Reply by {{ request.replyBy | date: 'mediumDate' }}</span>
+              }
+            </div>
+            <div class="request-side">
+              <span class="euros"><app-icon class="show" name="euro" />{{ request.fee | number: '1.2-2' }}</span>
+              <span [class]="tone(request.status)">{{ statusLabel(request) }}</span>
+              @if (request.status === 'AwaitingPayment') {
+                <button type="button" class="icon-hit danger" (click)="askDelete(request, $event)" (keydown.enter)="$event.stopPropagation()" aria-label="Delete unpaid request">
+                  <app-icon name="trash" />
+                </button>
+              }
+              <span class="chevron" aria-hidden="true"></span>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+</div>
+
+@if (asking()) {
+  <div class="backdrop" (click)="closeAsk()">
+    <section class="dialog wide" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header>
+        <h2>Ask a doctor</h2>
+        <button type="button" class="ghost" (click)="closeAsk()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </header>
+      <form class="dialog-form" [formGroup]="askForm" (ngSubmit)="sendAsk()">
+        <p class="form-kicker">Doctor</p>
+        <label>
+          Who should look
+          <span class="field">
+            <app-icon name="doctor" />
+            <select formControlName="doctorId">
+              <option value="">Choose</option>
+              @for (doctor of doctors(); track doctor.id) {
+                <option [value]="doctor.id">{{ doctor.fullName }}{{ doctor.hospital ? ' · ' + doctor.hospital : '' }} · €{{ doctor.fee | number: '1.2-2' }}</option>
+              }
+            </select>
+          </span>
+        </label>
+        @if (selectedDoctor(); as doctor) {
+          <p class="fee-line euros"><app-icon class="show" name="euro" />{{ doctor.fee | number: '1.2-2' }}</p>
+        }
+        <p class="form-kicker">What you feel</p>
+        <div>
+          <p class="field-caption">Symptoms</p>
+          <div class="chips">
+            @for (name of symptomChoices; track name) {
+              <button type="button" [class.on]="symptoms().includes(name)" (click)="toggleSymptom(name)">{{ name }}</button>
+            }
+          </div>
+        </div>
+        <label>
+          In your own words
+          <span class="field tall">
+            <textarea formControlName="feeling" rows="3"></textarea>
+          </span>
+        </label>
+        <label>
+          How long
+          <span class="field">
+            <select formControlName="duration">
+              <option value="">Choose</option>
+              <option>A few days</option>
+              <option>One to two weeks</option>
+              <option>Several weeks</option>
+              <option>A few months</option>
+              <option>More than a year</option>
+              <option>Not sure</option>
+            </select>
+          </span>
+        </label>
+        <label>
+          How strong it feels
+          <span class="field">
+            <select formControlName="intensity">
+              <option value="">Choose</option>
+              <option>Mild</option>
+              <option>Moderate</option>
+              <option>Severe</option>
+              <option>It comes and goes</option>
+            </select>
+          </span>
+        </label>
+        <label>
+          Asked someone about this before
+          <span class="field">
+            <select formControlName="consulted">
+              <option value="">Choose</option>
+              <option>No</option>
+              <option>Yes, a general doctor</option>
+              <option>Yes, a specialist</option>
+              <option>Yes, urgent care or a hospital</option>
+            </select>
+          </span>
+        </label>
+        @if (askForm.controls.consulted.value && askForm.controls.consulted.value !== 'No') {
+          <label>
+            What they told you
+            <span class="field tall">
+              <textarea formControlName="consultedNote" rows="3"></textarea>
+            </span>
+          </label>
+        }
+        <label>
+          What you want the doctor to know
+          <span class="field tall">
+            <textarea formControlName="message" rows="4"></textarea>
+          </span>
+        </label>
+        <p class="form-kicker">Files to share</p>
+        @if (shareable().length === 0) {
+          <p class="sub">Add a file in <a routerLink="/" (click)="closeAsk()">My digital records</a> before you ask.</p>
+        } @else {
+          <div class="choice-list">
+            @for (record of shareable(); track record.id) {
+              <label class="choice">
+                <input type="checkbox" [checked]="selectedIds().includes(record.id)" (change)="toggleFile(record.id)" />
+                <span class="file-row">
+                  <app-preview [fileName]="record.fileName" [recordId]="record.id" />
+                  <span>
+                    <strong>{{ record.description }}</strong>
+                    <small>{{ record.fileName }}</small>
+                  </span>
+                </span>
+              </label>
+            }
+          </div>
+        }
+        @if (askError()) {
+          <p class="note error">
+            <app-icon name="x" />
+            <span>{{ askError() }}</span>
+          </p>
+        }
+        <div class="actions">
+          <button type="submit" [disabled]="sending()">
+            <app-icon name="check" />
+            Send request
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (selectedRequest(); as request) {
+  <div class="backdrop" (click)="closeRequest()">
+    <section class="dialog wide" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header>
+        <div class="dialog-title">
+          <h2><button type="button" class="link" (click)="accounts.open(request.doctorId)">{{ request.doctorName }}</button></h2>
+          <span [class]="tone(request.status)">{{ statusLabel(request) }}</span>
+        </div>
+        <button type="button" class="ghost" (click)="closeRequest()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </header>
+      <div class="money">
+        <div><span>Doctor's fee</span><strong class="euros"><app-icon class="show" name="euro" />{{ request.fee | number: '1.2-2' }}</strong></div>
+        @if (request.doctorAmount != null) {
+          <div><span>Doctor received</span><strong class="euros"><app-icon class="show" name="euro" />{{ request.doctorAmount | number: '1.2-2' }}</strong></div>
+          <div><span>Kept by MediVault</span><strong class="euros"><app-icon class="show" name="euro" />{{ request.platformAmount | number: '1.2-2' }}</strong></div>
+        }
+      </div>
+      <dl class="facts">
+        @if (request.intake; as intake) {
+          <div class="block"><dt>Symptoms</dt><dd>{{ intake.symptoms.join(', ') }}</dd></div>
+          <div class="block"><dt>In your words</dt><dd>{{ intake.feeling }}</dd></div>
+          <div class="block"><dt>How long</dt><dd>{{ intake.duration }}</dd></div>
+          <div class="block"><dt>How strong it feels</dt><dd>{{ intake.intensity }}</dd></div>
+          <div class="block"><dt>Asked someone before</dt><dd>{{ intake.consulted }}</dd></div>
+          @if (intake.consultedNote) {
+            <div class="block"><dt>What they were told</dt><dd>{{ intake.consultedNote }}</dd></div>
+          }
+        }
+        <div class="block"><dt>What you want the doctor to know</dt><dd>{{ request.message }}</dd></div>
+        @if (request.status === 'Open' && request.replyBy) {
+          <div class="block"><dt>Doctor must reply by</dt><dd>{{ request.replyBy | date: 'mediumDate' }}</dd></div>
+        }
+        @if (request.opinion) {
+          <div class="block"><dt>Opinion from the doctor</dt><dd>{{ request.opinion }}</dd></div>
+        }
+        <div class="block">
+          <dt>Files shared</dt>
+          <dd>
+            <div class="table-wrap files">
+              <table>
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (file of request.files; track file.id) {
+                    <tr>
+                      <td>
+                        <button type="button" class="link" (click)="openRequestFile(request, file.id)">
+                          <app-preview [fileName]="file.fileName" [recordId]="file.id" [requestId]="request.id" />
+                          {{ file.fileName }}
+                        </button>
+                      </td>
+                      <td>{{ file.description }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </dd>
+        </div>
+      </dl>
+      @if (request.status === 'Refunded' && request.refundCause === 'Declined') {
+        <p class="note">The doctor declined this request. Your payment was refunded.</p>
+      } @else if (request.status === 'Refunded') {
+        <p class="note">The doctor did not reply within 7 days. This request was cancelled and your payment was refunded.</p>
+      }
+      @if (request.status === 'AwaitingPayment') {
+        <div class="paypal-slot">
+          @if (payError()) {
+            <p class="note error">
+              <app-icon name="x" />
+              <span>{{ payError() }}</span>
+            </p>
+          }
+          <div #paypalHost></div>
+        </div>
+        <div class="actions file-actions">
+          <button type="button" class="warn" (click)="askDelete(request)">
+            <app-icon name="trash" />
+            Delete request
+          </button>
+        </div>
+      }
+    </section>
+  </div>
+}
+
+@if (paying(); as request) {
+  <div class="backdrop" (click)="closePayment()">
+    <section class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header>
+        <h2>Pay {{ request.doctorName }}</h2>
+        <button type="button" class="ghost" (click)="closePayment()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </header>
+      <div class="money">
+        <div><span>Doctor's fee</span><strong class="euros"><app-icon class="show" name="euro" />{{ request.fee | number: '1.2-2' }}</strong></div>
+      </div>
+      <div class="paypal-slot">
+        @if (payError()) {
+          <p class="note error">
+            <app-icon name="x" />
+            <span>{{ payError() }}</span>
+          </p>
+        }
+        <div #paypalHost></div>
+      </div>
+      <div class="actions file-actions">
+        <button type="button" class="warn" (click)="askDelete(request)">
+          <app-icon name="trash" />
+          Delete request
+        </button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (pendingDelete(); as request) {
+  <div class="backdrop front" (click)="cancelDelete()">
+    <section class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header>
+        <h2>Delete this unpaid request?</h2>
+        <button type="button" class="ghost" (click)="cancelDelete()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </header>
+      <p class="dialog-copy">{{ request.doctorName }} has not been paid. Your files stay in My digital records.</p>
+      @if (deleteError()) {
+        <p class="note error">
+          <app-icon name="x" />
+          <span>{{ deleteError() }}</span>
+        </p>
+      }
+      <div class="actions file-actions">
+        <button type="button" class="ghost" (click)="cancelDelete()">Cancel</button>
+        <button type="button" class="warn" [disabled]="deleting()" (click)="confirmDelete()">
+          <app-icon name="trash" />
+          Delete
+        </button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (payNotice(); as notice) {
+  <div class="backdrop front" (click)="closeNotice()">
+    <section class="dialog notice" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="notice-mark" [class.bad]="notice === 'failure'">
+        <app-icon [name]="notice === 'success' ? 'check' : 'x'" />
+      </div>
+      <p>{{ notice === 'success' ? 'Payment was successful.' : 'Payment failed.' }}</p>
+    </section>
+  </div>
+}

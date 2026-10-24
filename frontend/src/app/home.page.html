@@ -1,0 +1,13 @@
+@if (auth.user()?.role === 'Patient') {
+  <app-records />
+} @else if (auth.user()?.role === 'Doctor') {
+  <app-doctor />
+} @else if (auth.user(); as user) {
+  <section class="card welcome">
+    <div class="mark">
+      <app-icon name="list" />
+    </div>
+    <h1>Hello, {{ user.fullName }}</h1>
+    <p><span class="pill">{{ user.role }}</span></p>
+  </section>
+}

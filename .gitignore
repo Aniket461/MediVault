@@ -1,0 +1,7 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.angular/
+.env
+submission data/paypal-checkout.webm

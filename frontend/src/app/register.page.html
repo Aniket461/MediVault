@@ -1,0 +1,102 @@
+<section class="banner">
+  <p class="banner-line">Your records. Their opinion.</p>
+</section>
+<section class="card auth">
+  <div class="page-title">
+    <app-icon name="user" />
+    <h1>Create account</h1>
+  </div>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <label>
+      Name
+      <span class="field">
+        <app-icon name="user" />
+        <input type="text" formControlName="fullName" autocomplete="name" />
+      </span>
+    </label>
+    <label>
+      Email
+      <span class="field">
+        <app-icon name="mail" />
+        <input type="email" formControlName="email" autocomplete="email" />
+      </span>
+    </label>
+    <label>
+      Phone
+      <span class="field">
+        <app-icon name="phone" />
+        <input type="tel" formControlName="phone" autocomplete="tel" />
+      </span>
+    </label>
+    <label>
+      Address
+      <span class="field tall">
+        <app-icon name="home" />
+        <textarea formControlName="address" rows="3" autocomplete="street-address"></textarea>
+      </span>
+    </label>
+    <label>
+      Password
+      <span class="field">
+        <app-icon name="lock" />
+        <input type="password" formControlName="password" autocomplete="new-password" />
+      </span>
+    </label>
+    <label>
+      I am a
+      <span class="field">
+        <app-icon [name]="form.controls.role.value === 'Doctor' ? 'doctor' : 'user'" />
+        <select formControlName="role">
+          <option value="Patient">Patient</option>
+          <option value="Doctor">Doctor</option>
+        </select>
+      </span>
+    </label>
+    @if (form.controls.role.value === 'Doctor') {
+      <label>
+        Hospital
+        <span class="field">
+          <app-icon name="hospital" />
+          <input type="text" formControlName="hospital" />
+        </span>
+      </label>
+      <label>
+        PayPal email
+        <span class="field">
+          <app-icon name="mail" />
+          <input type="email" formControlName="payPalEmail" autocomplete="email" />
+        </span>
+      </label>
+      <label>
+        Second-opinion fee
+        <span class="field">
+          <app-icon class="show" name="euro" />
+          <input type="number" min="0.01" step="0.01" formControlName="secondOpinionFee" />
+        </span>
+      </label>
+      <label>
+        Identification
+        <input #filePicker type="file" accept="image/jpeg,image/png,image/webp" multiple (change)="onFiles($event)" />
+      </label>
+      @for (file of files(); track file.name) {
+        <span class="file-name">{{ file.name }}</span>
+      }
+    }
+    @if (message()) {
+      <p class="note">
+        <app-icon name="check" />
+        <span>{{ message() }} <a routerLink="/login">Sign in</a></span>
+      </p>
+    }
+    @if (error()) {
+      <p class="note error">
+        <app-icon name="x" />
+        <span>{{ error() }}</span>
+      </p>
+    }
+    <button type="submit" [disabled]="submitting()">
+      <app-icon name="check" />
+      Create account
+    </button>
+  </form>
+</section>

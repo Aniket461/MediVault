@@ -1,0 +1,137 @@
+<section class="card">
+  <div class="spread">
+    <div class="page-title">
+      <app-icon name="file" />
+      <h1>My digital records</h1>
+    </div>
+    <button type="button" class="ghost" (click)="toggleUpload()">
+      {{ showUpload() ? 'Close' : 'Upload a file' }}
+    </button>
+  </div>
+  @if (showUpload()) {
+    <form class="upload" [formGroup]="form" (ngSubmit)="upload()">
+      <label>
+        Description
+        <span class="field tall">
+          <textarea formControlName="description" rows="2"></textarea>
+        </span>
+      </label>
+      <label>
+        File
+        <input #filePicker type="file" accept="application/pdf,image/jpeg,image/png,image/webp" (change)="onFile($event)" />
+      </label>
+      <button type="submit" [disabled]="uploading()">
+        <app-icon name="check" />
+        Upload
+      </button>
+      <p class="upload-note">* PDF, JPEG, PNG, or WebP. 5 MB at most.</p>
+    </form>
+  }
+  @if (message()) {
+    <p class="note error">
+      <app-icon name="x" />
+      <span>{{ message() }}</span>
+    </p>
+  }
+  @if (records().length === 0) {
+    <p class="sub">No files yet.</p>
+  } @else {
+    <div class="vault-list">
+      @for (record of records(); track record.id) {
+        <article class="vault-row" [class.archived]="record.archived">
+          <div class="vault-main">
+            <app-preview [fileName]="record.fileName" [recordId]="record.id" />
+            <div class="vault-copy">
+              <strong>{{ record.fileName }}</strong>
+              @if (editingId() === record.id) {
+                <form class="vault-edit" [formGroup]="editForm" (ngSubmit)="saveEdit(record)">
+                  <span class="field">
+                    <input formControlName="description" />
+                  </span>
+                  <button type="submit">Save</button>
+                  <button type="button" class="ghost" (click)="cancelEdit()">Cancel</button>
+                </form>
+              } @else {
+                <span class="vault-desc">
+                  {{ record.description }}
+                  <button type="button" class="icon-hit" (click)="startEdit(record)" aria-label="Edit description">
+                    <app-icon name="edit" />
+                  </button>
+                </span>
+              }
+              <span class="vault-meta">
+                {{ record.createdAt | date: 'mediumDate' }}
+                @if (record.archived) {
+                  · Archived
+                }
+              </span>
+            </div>
+          </div>
+          @if (editingId() !== record.id) {
+            <div class="actions file-actions">
+              <button type="button" class="ghost" (click)="openFile(record)">
+                <app-icon name="open" />
+                Open
+              </button>
+              @if (record.archived) {
+                <button type="button" class="ghost" (click)="restore(record)">Restore</button>
+              } @else if (record.locked) {
+                <button type="button" class="ghost" (click)="askArchive(record)">
+                  <app-icon name="archive" />
+                  Archive
+                </button>
+              } @else {
+                <button type="button" class="warn" (click)="askDelete(record)">
+                  <app-icon name="trash" />
+                  Delete
+                </button>
+              }
+            </div>
+          }
+        </article>
+      }
+    </div>
+  }
+</section>
+
+@if (pendingDelete(); as record) {
+  <div class="backdrop" (click)="cancelDelete()">
+    <section class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header>
+        <h2>Delete this file?</h2>
+        <button type="button" class="ghost" (click)="cancelDelete()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </header>
+      <p class="dialog-copy">{{ record.description }}</p>
+      <div class="actions file-actions">
+        <button type="button" class="ghost" (click)="cancelDelete()">Cancel</button>
+        <button type="button" class="warn" (click)="confirmDelete()">
+          <app-icon name="trash" />
+          Delete
+        </button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (pendingArchive(); as record) {
+  <div class="backdrop" (click)="cancelArchive()">
+    <section class="dialog" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header>
+        <h2>Archive this file?</h2>
+        <button type="button" class="ghost" (click)="cancelArchive()" aria-label="Close">
+          <app-icon name="x" />
+        </button>
+      </header>
+      <p class="dialog-copy">It stays on requests that already use it. It will not be offered for a new request.</p>
+      <div class="actions file-actions">
+        <button type="button" class="ghost" (click)="cancelArchive()">Cancel</button>
+        <button type="button" (click)="confirmArchive()">
+          <app-icon name="archive" />
+          Archive
+        </button>
+      </div>
+    </section>
+  </div>
+}
